@@ -1,0 +1,6 @@
+{
+  "name": "QUIZMASTER AI",
+  "description": "AI-powered test and CBT platform for Nigerian students to practice JAMB, WAEC, NECO, and BECE examinations with tailored mock tests and detailed explanations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
