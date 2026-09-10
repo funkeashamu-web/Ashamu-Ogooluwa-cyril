@@ -6,6 +6,9 @@ import {
   UserStats,
   PaymentRecord,
   AccessStatus,
+  EducationalGameId,
+  GameScoreRecord,
+  GameStats,
 } from "../types";
 import { DEFAULT_ACHIEVEMENTS } from "../data/subjectData";
 
@@ -20,6 +23,8 @@ const STORAGE_KEYS = {
   CUSTOM_SUBJECTS: "test_yourself_custom_subjects",
   FIRST_EXAM_DATE: "test_yourself_first_exam_date",
   PAYMENT_RECORD: "test_yourself_payment_record",
+  GAME_SCORES: "quizmaster_game_scores",
+  GAME_STATS: "quizmaster_game_stats",
 };
 
 export const PAYMENT_DETAILS = {
@@ -664,24 +669,32 @@ export function getAccessStatus(): AccessStatus {
   try {
     const payment = getPaymentRecord();
     const hasPaid = Boolean(payment && payment.hasPaid && payment.verified);
-    const firstExamDate = getFirstExamDate();
 
-    if (!firstExamDate) {
-      // User hasn't started or finished their first day exam yet
+    // If paid, the app is 100% unblocked and full access is granted permanently
+    if (hasPaid) {
       return {
-        hasPaid,
-        firstExamDate: null,
-        isDay1: true,
+        hasPaid: true,
+        firstExamDate: getFirstExamDate(),
+        isDay1: false,
         daysSinceFirstExam: 0,
         isPaymentRequired: false,
+        isBlocked: false,
         paymentRecord: payment,
       };
     }
 
+    // Check when user first started using the app
+    let firstExamDate = getFirstExamDate();
+    if (!firstExamDate) {
+      firstExamDate = recordFirstExamDateIfNeeded();
+    }
+
     const firstDate = new Date(firstExamDate);
     const now = new Date();
+    const elapsedMs = now.getTime() - firstDate.getTime();
+    const oneDayMs = 24 * 60 * 60 * 1000;
 
-    // Calculate calendar day difference
+    // Calendar day difference
     const startOfFirstDate = new Date(
       firstDate.getFullYear(),
       firstDate.getMonth(),
@@ -694,19 +707,23 @@ export function getAccessStatus(): AccessStatus {
     ).getTime();
     const dayDifference = Math.max(
       0,
-      Math.floor((startOfToday - startOfFirstDate) / (1000 * 60 * 60 * 24))
+      Math.floor((startOfToday - startOfFirstDate) / oneDayMs)
     );
 
-    const isDay1 = dayDifference === 0;
-    const isPaymentRequired = !hasPaid && dayDifference >= 1;
+    // Day 1 is free within first 24 hours and calendar day 0.
+    // If either 24 hours have elapsed OR calendar day >= 1, Day 1 is over!
+    const isDay1 = dayDifference === 0 && elapsedMs < oneDayMs;
+    const isPaymentRequired = !hasPaid && !isDay1;
+    const isBlocked = isPaymentRequired;
 
     return {
-      hasPaid,
+      hasPaid: false,
       firstExamDate,
       isDay1,
-      daysSinceFirstExam: dayDifference,
+      daysSinceFirstExam: Math.max(dayDifference, elapsedMs >= oneDayMs ? 1 : 0),
       isPaymentRequired,
-      paymentRecord: payment,
+      isBlocked,
+      paymentRecord: null,
     };
   } catch (e) {
     return {
@@ -715,6 +732,7 @@ export function getAccessStatus(): AccessStatus {
       isDay1: true,
       daysSinceFirstExam: 0,
       isPaymentRequired: false,
+      isBlocked: false,
       paymentRecord: null,
     };
   }
@@ -733,7 +751,7 @@ export function confirmStudentPayment(details: {
     accountName: PAYMENT_DETAILS.accountName,
     senderName: details.senderName?.trim() || "Student",
     bankName: details.bankName?.trim() || "Bank Transfer",
-    reference: details.reference?.trim() || `TY-NIG-${Date.now().toString(36).toUpperCase()}`,
+    reference: details.reference?.trim() || `QM-NIG-${Date.now().toString(36).toUpperCase()}`,
     verified: true,
   };
   savePaymentRecord(record);
@@ -742,8 +760,8 @@ export function confirmStudentPayment(details: {
 
 // Development and test helpers for student / tester convenience
 export function simulateNextDayForTesting(): AccessStatus {
-  // Set first exam date to yesterday (25 hours ago)
-  const yesterday = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+  // Set first exam date to 26 hours ago (Day 2 unpaid)
+  const yesterday = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
   localStorage.setItem(STORAGE_KEYS.FIRST_EXAM_DATE, yesterday);
   // Remove payment record to simulate Day 2 unpaid status
   localStorage.removeItem(STORAGE_KEYS.PAYMENT_RECORD);
@@ -751,8 +769,110 @@ export function simulateNextDayForTesting(): AccessStatus {
 }
 
 export function resetTrialForTesting(): AccessStatus {
-  localStorage.removeItem(STORAGE_KEYS.FIRST_EXAM_DATE);
+  const now = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEYS.FIRST_EXAM_DATE, now);
   localStorage.removeItem(STORAGE_KEYS.PAYMENT_RECORD);
   return getAccessStatus();
+}
+
+export function simulatePaidForTesting(): AccessStatus {
+  confirmStudentPayment({
+    senderName: "Demo Student",
+    bankName: "OPAY",
+    reference: `OPAY-DEMO-${Date.now().toString(36).toUpperCase()}`,
+  });
+  return getAccessStatus();
+}
+
+// ---------------------------------------------------------------------------
+// Educational Games Storage & High Score Management
+// ---------------------------------------------------------------------------
+
+const DEFAULT_GAME_STATS: GameStats = {
+  totalGamesPlayed: 0,
+  totalStarsEarned: 0,
+  bestScores: {
+    "speed-match": 0,
+    "speed-math": 0,
+    "word-scramble": 0,
+    "fact-sprint": 0,
+  },
+  longestStreak: 0,
+};
+
+export function getGameStats(): GameStats {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.GAME_STATS);
+    if (!raw) return { ...DEFAULT_GAME_STATS };
+    const parsed = JSON.parse(raw);
+    return {
+      totalGamesPlayed: parsed.totalGamesPlayed || 0,
+      totalStarsEarned: parsed.totalStarsEarned || 0,
+      bestScores: {
+        "speed-match": parsed.bestScores?.["speed-match"] || 0,
+        "speed-math": parsed.bestScores?.["speed-math"] || 0,
+        "word-scramble": parsed.bestScores?.["word-scramble"] || 0,
+        "fact-sprint": parsed.bestScores?.["fact-sprint"] || 0,
+      },
+      longestStreak: parsed.longestStreak || 0,
+    };
+  } catch (e) {
+    return { ...DEFAULT_GAME_STATS };
+  }
+}
+
+export function saveGameScore(record: GameScoreRecord): {
+  isNewHigh: boolean;
+  stats: GameStats;
+} {
+  try {
+    const stats = getGameStats();
+    const currentHigh = stats.bestScores[record.gameId] || 0;
+    const isNewHigh = record.score > currentHigh;
+
+    if (isNewHigh) {
+      stats.bestScores[record.gameId] = record.score;
+    }
+
+    stats.totalGamesPlayed += 1;
+    stats.totalStarsEarned += record.stars || 0;
+
+    if (record.streak && record.streak > stats.longestStreak) {
+      stats.longestStreak = record.streak;
+    }
+
+    localStorage.setItem(STORAGE_KEYS.GAME_STATS, JSON.stringify(stats));
+
+    // Also append to recent game scores log
+    try {
+      const historyRaw = localStorage.getItem(STORAGE_KEYS.GAME_SCORES);
+      const historyList: GameScoreRecord[] = historyRaw ? JSON.parse(historyRaw) : [];
+      historyList.unshift(record);
+      // Keep last 30 plays
+      localStorage.setItem(
+        STORAGE_KEYS.GAME_SCORES,
+        JSON.stringify(historyList.slice(0, 30))
+      );
+    } catch (e) {}
+
+    return { isNewHigh, stats };
+  } catch (e) {
+    return { isNewHigh: false, stats: getGameStats() };
+  }
+}
+
+export function getRecentGameHistory(): GameScoreRecord[] {
+  try {
+    const historyRaw = localStorage.getItem(STORAGE_KEYS.GAME_SCORES);
+    return historyRaw ? JSON.parse(historyRaw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function resetGameScoresForTesting(): GameStats {
+  localStorage.removeItem(STORAGE_KEYS.GAME_STATS);
+  localStorage.removeItem(STORAGE_KEYS.GAME_SCORES);
+  return { ...DEFAULT_GAME_STATS };
 }
 

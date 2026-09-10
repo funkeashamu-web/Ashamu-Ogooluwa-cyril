@@ -28,6 +28,7 @@ import {
   Copy,
   Check,
   ShieldCheck,
+  Gamepad2,
 } from "lucide-react";
 import { Subject, TestResult, UserStats, AccessStatus } from "../types";
 import { NIGERIAN_EXAMS } from "../data/examData";
@@ -46,6 +47,7 @@ interface DashboardProps {
   onGoToExamPrep: (examId?: "JAMB" | "WAEC" | "NECO" | "BECE") => void;
   onGoToCoach: () => void;
   onLaunchQuickPractice: (count: number) => void;
+  onGoToGames?: () => void;
   accessStatus?: AccessStatus;
   onOpenPaymentModal?: () => void;
 }
@@ -74,6 +76,7 @@ export function Dashboard({
   onGoToExamPrep,
   onGoToCoach,
   onLaunchQuickPractice,
+  onGoToGames,
   accessStatus,
   onOpenPaymentModal,
 }: DashboardProps) {
@@ -415,6 +418,42 @@ export function Dashboard({
           </button>
         </div>
       </div>
+
+      {/* Educational Games Feature Banner */}
+      {onGoToGames && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl border border-emerald-200/80 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-indigo-500/10 p-5 sm:p-6 dark:border-emerald-800/60 dark:from-emerald-950/40 dark:via-slate-900 dark:to-indigo-950/30 shadow-xs">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20">
+              <Gamepad2 className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Educational Games & Brain Drills
+                </h3>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 uppercase">
+                  New
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                Play 60s Speed Math Blitz, Speed Match pairs, Word Scramble, and True/False sprints to supercharge your exam speed.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              onGoToGames();
+            }}
+            className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm px-4 py-2.5 shadow-sm transition-all cursor-pointer whitespace-nowrap self-end sm:self-auto"
+          >
+            <span>Play Games</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* 4. Weak Areas Alert (if student has weak spots identified) */}
       {hasWeakAreas && (

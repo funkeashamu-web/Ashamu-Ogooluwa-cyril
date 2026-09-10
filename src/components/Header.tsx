@@ -12,6 +12,8 @@ import {
   FileText,
   CreditCard,
   CheckCircle2,
+  Lock,
+  Gamepad2,
 } from "lucide-react";
 import { sound } from "../utils/audio";
 import { AccessStatus } from "../types";
@@ -48,6 +50,7 @@ export function Header(props: HeaderProps) {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "exam-prep", label: "Exam Prep", icon: GraduationCap },
+    { id: "games", label: "Games", icon: Gamepad2 },
     { id: "ai-coach", label: "AI Coach", icon: Brain },
     { id: "test", label: "Custom Test", icon: BookOpen },
     { id: "notes", label: "Study Notes", icon: FileText },
@@ -125,26 +128,26 @@ export function Header(props: HeaderProps) {
               className={`flex items-center gap-1.5 rounded-full px-2.5 sm:px-3 py-1 text-xs font-bold transition-all ${
                 accessStatus.hasPaid
                   ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800"
-                  : accessStatus.isPaymentRequired
+                  : accessStatus.isBlocked
                   ? "bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-700 animate-pulse"
-                  : "bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800"
+                  : "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800"
               }`}
             >
               {accessStatus.hasPaid ? (
                 <>
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span className="hidden sm:inline">₦500 Premium</span>
-                  <span className="sm:hidden">Active</span>
+                  <span className="hidden sm:inline">₦500 Unlocked</span>
+                  <span className="sm:hidden">Unlocked</span>
                 </>
-              ) : accessStatus.isPaymentRequired ? (
+              ) : accessStatus.isBlocked ? (
                 <>
-                  <CreditCard className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span>Pay ₦500 (Day 2)</span>
+                  <Lock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>App Locked • Pay ₦500</span>
                 </>
               ) : (
                 <>
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
-                  <span className="hidden sm:inline">Day 1 Free Access</span>
+                  <span className="hidden sm:inline">Day 1 Free Trial</span>
                   <span className="sm:hidden">Day 1 Free</span>
                 </>
               )}
@@ -174,11 +177,20 @@ export function Header(props: HeaderProps) {
           {/* Theme Toggle */}
           <button
             id="theme-toggle-btn"
-            onClick={onToggleTheme}
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              onToggleTheme();
+            }}
+            aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
             title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors cursor-pointer"
           >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {isDark ? (
+              <Sun className="h-4 w-4 text-amber-400" />
+            ) : (
+              <Moon className="h-4 w-4 text-slate-600" />
+            )}
           </button>
         </div>
       </div>

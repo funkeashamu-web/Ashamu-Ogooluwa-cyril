@@ -150,5 +150,29 @@ export interface AccessStatus {
   isDay1: boolean;
   daysSinceFirstExam: number;
   isPaymentRequired: boolean;
+  isBlocked: boolean;
   paymentRecord?: PaymentRecord | null;
+}
+
+export type EducationalGameId =
+  | "speed-match"
+  | "speed-math"
+  | "word-scramble"
+  | "fact-sprint";
+
+export interface GameScoreRecord {
+  gameId: EducationalGameId;
+  score: number;
+  stars: number;
+  accuracy: number;
+  date: string;
+  category?: string;
+  streak?: number;
+}
+
+export interface GameStats {
+  totalGamesPlayed: number;
+  totalStarsEarned: number;
+  bestScores: Record<EducationalGameId, number>;
+  longestStreak: number;
 }
